@@ -4,7 +4,6 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 preDeployCommand = "chmod +x ./build-app.sh && sh ./build-app.sh"
-startCommand = "php artisan serve --host=0.0.0.0 --port=$PORT"
 healthcheckPath = "/api/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"
