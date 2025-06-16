@@ -29,6 +29,7 @@ name = "queue"
 command = "chmod +x ./run-worker.sh && sh ./run-worker.sh"
 envs = ["PORT"]
 scale = 2
+healthcheckPath = "/api/health"
 
 [[services]]
 name = "cron"
