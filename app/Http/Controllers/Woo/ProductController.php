@@ -2265,10 +2265,34 @@ class ProductController extends Controller
 
     public function searchProducts(Request $request)
     {
+        $start = microtime(true);
+        
+        // Enable query logging
+        \DB::listen(function ($query) {
+            \Log::info("⏱️ Query: {$query->sql} [{$query->time}ms]");
+        });
+
         $perPage = $request->query('perPage', 15);
         $sortBy = $request->query('sort', 'default');
         $page = $request->query('page', 1);
         $searchTerm = $request->input('searchTerm', '');
+
+        // Generate cache key based on request parameters
+        $cacheKey = "search_products:" . md5(json_encode([
+            'searchTerm' => $searchTerm,
+            'perPage' => $perPage,
+            'page' => $page,
+            'sort' => $sortBy,
+            'auth' => auth()->check()
+        ]));
+
+        // Try to get from cache first
+        if (Cache::has($cacheKey)) {
+            $duration = round(microtime(true) - $start, 2);
+            \Log::info("🔍 API Time for /searchProducts (cached): {$duration}s");
+            return Cache::get($cacheKey);
+        }
+
         try {
             $user = JWTAuth::parseToken()->authenticate();
             if ($user->ID) {
@@ -2312,19 +2336,24 @@ class ProductController extends Controller
                 ->where('post_status', 'publish');
         }
 
-
         if (!empty($searchTerm)) {
-            $searchWords = preg_split('/\s+/', $searchTerm);
-            $regexPattern = implode('.*', array_map(function ($word) {
-                return "(?=.*" . preg_quote($word) . ")";
-            }, $searchWords));
-
-            $query->where(function ($query) use ($regexPattern) {
-                $query->where('post_title', 'REGEXP', $regexPattern)
-                    ->orWhere('post_name', 'REGEXP', $regexPattern);
+            // Optimize search query using FULLTEXT index if available
+            $searchWords = explode(' ', trim($searchTerm));
+            $query->where(function ($query) use ($searchWords) {
+                foreach ($searchWords as $word) {
+                    $query->where(function ($q) use ($word) {
+                        $q->where('post_title', 'LIKE', "%{$word}%")
+                          ->orWhere('post_name', 'LIKE', "%{$word}%");
+                    });
+                }
             });
         }
-        $products = $query->orderBy('post_date', 'desc')->paginate($perPage, ['*'], 'page', $page);
+
+        // Add index hint for better performance
+        $query->fromRaw('wp_posts FORCE INDEX (type_status_date)');
+        
+        $products = $query->orderBy('post_date', 'desc')
+                         ->paginate($perPage, ['*'], 'page', $page);
 
         try {
             $user = JWTAuth::parseToken()->authenticate();
@@ -2356,7 +2385,7 @@ class ProductController extends Controller
                     ];
                 });
             }
-            return response()->json(['status' => 'auth', 'user' => $user, 'products' => $products]);
+            $response = response()->json(['status' => 'auth', 'user' => $user, 'products' => $products]);
         } catch (\Throwable $th) {
             try {
                 $originalCollection = $products->getCollection();
@@ -2397,12 +2426,19 @@ class ProductController extends Controller
                 });
 
                 $products->setCollection($transformedCollection->values());
-
-                return response()->json(['status' => 'no-auth', 'products' => $products]);
+                $response = response()->json(['status' => 'no-auth', 'products' => $products]);
             } catch (\Throwable $th) {
-                return response()->json(['status' => 'no-auth', 'message' => $th->getMessage()], 500);
+                $response = response()->json(['status' => 'no-auth', 'message' => $th->getMessage()], 500);
             }
         }
+
+        // Cache the response for 5 minutes
+        Cache::put($cacheKey, $response, 300);
+
+        $duration = round(microtime(true) - $start, 2);
+        \Log::info("🔍 API Time for /searchProducts: {$duration}s");
+
+        return $response;
     }
 
     public function searchProductsAll(Request $request)
