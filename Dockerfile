@@ -45,8 +45,10 @@ COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
 # Copy supervisor configuration
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Install composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Install composer with retry logic
+RUN for i in $(seq 1 3); do \
+    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version=2.6.5 && break || sleep 5; \
+    done
 
 # Add user for laravel application
 RUN groupadd -g 1000 www && \
