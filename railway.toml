@@ -22,7 +22,8 @@ FORCE_HTTPS = "true"
 [[services]]
 name = "web"
 envs = ["PORT"]
-scale = 2
+scale = 3
+healthcheckPath = "/api/health"
 
 [[services]]
 name = "queue"

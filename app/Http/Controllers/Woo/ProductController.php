@@ -3574,5 +3574,18 @@ class ProductController extends Controller
         return response()->json($products);
     }
 
-    
+    public function someExpensiveProductQuery(Request $request)
+    {
+        $cacheKey = 'products_' . md5(json_encode($request->all()));
+        $perPage = $request->query('perPage', 15);
+        $page = $request->query('page', 1);
+        $sortBy = $request->query('sort', 'latest');
+        $products = Cache::remember($cacheKey, 60, function () use ($perPage, $page, $sortBy) {
+            // Your existing query logic here, e.g.:
+            // $query = Product::with(...)->orderBy(...);
+            // return $query->paginate($perPage, ['*'], 'page', $page);
+            return [];
+        });
+        return response()->json($products);
+    }
 }
