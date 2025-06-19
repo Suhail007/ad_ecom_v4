@@ -42,8 +42,6 @@ LOG_CHANNEL = "stderr"
 LOG_LEVEL = "error"
 
 # Security
-APP_DEBUG = "false"
-APP_ENV = "production"
 FORCE_HTTPS = "true"
 
 # Performance
