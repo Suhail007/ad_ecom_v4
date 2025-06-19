@@ -5,6 +5,8 @@ FROM php:8.2-fpm
 RUN apt-get update && apt-get install -y \
     git \
     curl \
+    iputils-ping \
+    dnsutils \
     libpng-dev \
     libonig-dev \
     libxml2-dev \
@@ -107,9 +109,9 @@ RUN (crontab -l ; echo "* * * * * cd /var/www/html && php artisan schedule:run >
 # Expose ports
 EXPOSE 80 443 9000 6001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost/health || exit 1
+# Health check (using wget which is more lightweight than curl)
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost/api/health || exit 1
 
 # Set working directory
 WORKDIR /var/www/html
