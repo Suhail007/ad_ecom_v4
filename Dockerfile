@@ -1,70 +1,125 @@
+# Use the official PHP 8.2 FPM image as base
 FROM php:8.2-fpm
+
+# Install system dependencies and required PHP extensions
+RUN apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    libzip-dev \
+    libicu-dev \
+    libpq-dev \
+    libfreetype6-dev \
+    libjpeg62-turbo-dev \
+    libpng-dev \
+    libwebp-dev \
+    libxpm-dev \
+    libgd-dev \
+    libmagickwand-dev \
+    zip \
+    unzip \
+    supervisor \
+    nginx \
+    cron \
+    nano \
+    htop \
+    procps \
+    iputils-ping \
+    dnsutils \
+    jq \
+    gnupg2 \
+    lsb-release \
+    ca-certificates \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-xpm \
+    && docker-php-ext-install -j$(nproc) gd \
+    && docker-php-ext-install pdo pdo_mysql pdo_pgsql mysqli mbstring exif pcntl bcmath zip intl opcache
+
+# Install Redis extension
+RUN pecl install -o -f redis \
+    && rm -rf /tmp/pear \
+    && docker-php-ext-enable redis
+
+# Install ImageMagick
+RUN pecl install imagick && docker-php-ext-enable imagick
+
+# Install Node.js and npm
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g npm@latest
+
+# Install Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+
+# Install AWS CLI (for S3 backups)
+RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
+    && unzip awscliv2.zip \
+    && ./aws/install \
+    && rm -rf awscliv2.zip ./aws
+
+# Set timezone
+RUN ln -snf /usr/share/zoneinfo/UTC /etc/localtime && echo UTC > /etc/timezone
+
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /var/www/html
 
-# Install dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    libpng-dev \
-    libjpeg62-turbo-dev \
-    libfreetype6-dev \
-    locales \
-    zip \
-    jpegoptim optipng pngquant gifsicle \
-    vim \
-    unzip \
-    git \
-    curl \
-    libzip-dev \
-    libonig-dev \
-    libicu-dev \
-    supervisor \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+# Copy application files
+COPY . /var/www/html/
 
-# Install extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install -j$(nproc) \
-    pdo_mysql \
-    mbstring \
-    zip \
-    exif \
-    pcntl \
-    gd \
-    && docker-php-ext-configure intl \
-    && docker-php-ext-install -j$(nproc) intl \
-    && docker-php-ext-install -j$(nproc) opcache
+# Install Composer dependencies (without dev dependencies)
+RUN composer install --no-interaction --optimize-autoloader --no-dev
 
-# Install Redis extension
-RUN pecl install redis && docker-php-ext-enable redis
+# Install NPM dependencies and build assets
+RUN npm install --production \
+    && npm run production \
+    && npm cache clean --force
 
-# Configure PHP
-COPY docker/php.ini /usr/local/etc/php/conf.d/custom.ini
+# Install Supervisor
+RUN mkdir -p /var/log/supervisor
 
-# Copy supervisor configuration
+# Copy configuration files
+COPY docker/php.ini /usr/local/etc/php/conf.d/php.ini
+COPY docker/php-fpm.conf /usr/local/etc/php-fpm.d/zzz-www.conf
+COPY docker/nginx.conf /etc/nginx/nginx.conf
 COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Install composer with retry logic
-RUN for i in $(seq 1 3); do \
-    curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer --version=2.6.5 && break || sleep 5; \
-    done
+# Set up log files
+RUN mkdir -p /var/log/nginx /var/log/php /var/log/supervisor \
+    && touch /var/log/nginx/access.log /var/log/nginx/error.log \
+    && touch /var/log/php/error.log /var/log/php/access.log \
+    && touch /var/log/supervisor/supervisord.log \
+    && chmod -R 777 /var/log/nginx /var/log/php /var/log/supervisor
 
-# Add user for laravel application
-RUN groupadd -g 1000 www && \
-    useradd -u 1000 -ms /bin/bash -g www www
+# Set up application directories
+RUN mkdir -p /var/www/html/storage /var/www/html/bootstrap/cache \
+    && chown -R www-data:www-data /var/www/html/storage \
+    && chown -R www-data:www-data /var/www/html/bootstrap/cache \
+    && chmod -R 775 /var/www/html/storage \
+    && chmod -R 775 /var/www/html/bootstrap/cache
 
-# Copy composer files first for better caching
-COPY composer.json composer.lock ./
+# Set up crontab
+RUN (crontab -l ; echo "* * * * * cd /var/www/html && php artisan schedule:run >> /dev/null 2>&1") | crontab -
 
-# Install dependencies
-RUN composer install --no-scripts --no-autoloader --no-dev
+# Expose ports
+EXPOSE 80 443 9000 6001
 
-# Copy application files
-COPY . .
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/health || exit 1
+
+# Set working directory
+WORKDIR /var/www/html
 
 # Set permissions
-RUN chown -R www:www /var/www/html \
+RUN chown -R www-data:www-data /var/www/html \
+    && find /var/www/html -type d -exec chmod 755 {} \; \
+    && find /var/www/html -type f -exec chmod 644 {} \; \
+    && chmod -R 777 /var/www/html/storage \
+    && chmod -R 777 /var/www/html/bootstrap/cache \
     && chmod -R 755 /var/www/html/storage \
     && chmod -R 755 /var/www/html/bootstrap/cache
 

@@ -1,19 +1,147 @@
-/node_modules
-/vendor
-.git
-.gitignore
+# Node.js
+/node_modules/
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+/.yarn/cache
+/.yarn/unplugged
+/.yarn/build-state.yml
+/.yarn/install-state.gz
+.pnp.*
+
+# PHP
+/vendor/
+composer.lock
+composer.phar
+.phpunit.result.cache
+.phpunit.cache
+.phpcs-cache/
+.phpcs-cache/*
+.php_cs.cache
+.php-cs-fixer.cache
+
+# Laravel
 .env
 .env.*
-*.md
-.idea
-.vscode
-*.log
-docker-compose.yml
-Dockerfile
-.dockerignore
-tests
-phpunit.xml
+!.env.example
 storage/framework/cache/**
 storage/framework/sessions/**
 storage/framework/views/**
-storage/logs/** 
+storage/logs/**
+storage/debugbar/**
+storage/clockwork/**
+
+# Build and deployment
+Dockerfile
+.dockerignore
+docker-compose*
+.docker-sync/
+.docker/
+build/
+dist/
+
+# Version control
+.git/
+.gitattributes
+.github/
+.gitignore
+.gitkeep
+.gitmodules
+.gitlab-ci.yml
+
+# IDE and editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+*.sublime-grunt.cache
+*.sublime-build
+*.sublime-*
+.project
+.settings/
+.tmproj
+*.tmproj
+*.tmproj.*
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Testing
+/coverage/
+/phpunit.xml
+.circleci/
+.travis.yml
+.phpunit.*
+
+# Documentation
+*.md
+*.markdown
+CHANGELOG*
+CONTRIBUTING*
+README*
+UPGRADE*
+UPGRADING*
+VERSION
+LICENSE*
+license*
+
+# Local development
+Homestead.json
+Homestead.yaml
+Vagrantfile
+
+# Logs and databases
+*.log
+*.sql
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.swp
+*~
+.~*
+
+# Environment files (except example)
+!.env.example
+
+# Local development environment files
+.php-version
+.php-version.*
+.php-version-*
+.php-version.*.dist
+.php-version-*.dist
+
+# Deployment configuration
+_ide_helper.php
+_ide_helper_models.php
+_ide_helper_models.php.meta
+_ide_helper.php.meta
+_ide_helper.php.pgsql
+_ide_helper.php.mysql
+_ide_helper.php.sqlite
+
+# Local development tools
+.phpstorm.meta.php
+.phpstorm.meta.php.meta
+.phpstorm.meta.php.*
+.phpstorm.meta.php.*.meta
+.phpstorm.meta.php.*.dist
+.phpstorm.meta.php.*.dist.meta
+
+# Ignore all files in storage except storage/app/public
+storage/*
+!storage/app/
+!storage/app/public/
+!storage/framework/
+!storage/framework/cache/
+!storage/framework/sessions/
+!storage/framework/views/
+!storage/logs/
+!storage/oauth-private.key
+!storage/oauth-public.key
+
+# Ignore all files in bootstrap/cache except .gitignore
+bootstrap/cache/*
+!bootstrap/cache/.gitignore 

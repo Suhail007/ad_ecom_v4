@@ -33,6 +33,10 @@ return [
 
     'stores' => [
 
+        'apc' => [
+            'driver' => 'apc',
+        ],
+
         'array' => [
             'driver' => 'array',
             'serialize' => false,
@@ -40,9 +44,9 @@ return [
 
         'database' => [
             'driver' => 'database',
-            'table' => env('DB_CACHE_TABLE', 'cache'),
-            'connection' => env('DB_CACHE_CONNECTION', null),
-            'lock_connection' => env('DB_CACHE_LOCK_CONNECTION', null),
+            'table' => 'cache',
+            'connection' => null,
+            'lock_connection' => null,
         ],
 
         'file' => [
@@ -59,7 +63,15 @@ return [
                 env('MEMCACHED_PASSWORD'),
             ],
             'options' => [
-                // Memcached::OPT_CONNECT_TIMEOUT => 2000,
+                \Memcached::OPT_CONNECT_TIMEOUT => 2000,
+                \Memcached::OPT_RETRY_TIMEOUT => 2,
+                \Memcached::OPT_DISTRIBUTION => \Memcached::DISTRIBUTION_CONSISTENT,
+                \Memcached::OPT_LIBKETAMA_COMPATIBLE => true,
+                \Memcached::OPT_NO_BLOCK => true,
+                \Memcached::OPT_TCP_NODELAY => true,
+                \Memcached::OPT_SERVER_FAILURE_LIMIT => 2,
+                \Memcached::OPT_SOCKET_SEND_SIZE => 32768,
+                \Memcached::OPT_SOCKET_RECV_SIZE => 32768,
             ],
             'servers' => [
                 [
@@ -72,8 +84,16 @@ return [
 
         'redis' => [
             'driver' => 'redis',
-            'connection' => env('REDIS_CACHE_CONNECTION', 'cache'),
-            'lock_connection' => env('REDIS_CACHE_LOCK_CONNECTION', 'default'),
+            'connection' => 'cache',
+            'lock_connection' => 'default',
+            'lock_lottery' => [2, 100],
+            'lock_timeout' => 10,
+            'block_for' => null,
+            'after_commit' => false,
+            'retry_after' => 90,
+            'retry_interval' => 1000,
+            'read_timeout' => 1,
+            'timeout' => 5,
         ],
 
         'dynamodb' => [

@@ -4,35 +4,78 @@ dockerfilePath = "Dockerfile"
 
 [deploy]
 preDeployCommand = "chmod +x ./build-app.sh && sh ./build-app.sh"
-healthcheckPath = "/api/health"
-healthcheckTimeout = 100
+healthcheckPath = "/health"
+healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 10
 
+# Environment variables
 [env]
 APP_ENV = "production"
 APP_DEBUG = "false"
-CACHE_DRIVER = "redis"
-QUEUE_CONNECTION = "redis"
-SESSION_DRIVER = "redis"
-LOG_CHANNEL = "errorlog"
 APP_URL = "https://${RAILWAY_PUBLIC_DOMAIN}"
+APP_KEY = "${APP_KEY}"
+
+# Database
+DB_CONNECTION = "pgsql"
+DB_HOST = "${DATABASE_URL}"
+DB_PORT = "5432"
+DB_DATABASE = "${PGDATABASE}"
+DB_USERNAME = "${PGUSER}"
+DB_PASSWORD = "${PGPASSWORD}"
+
+# Redis
+REDIS_CLIENT = "phpredis"
+REDIS_URL = "${REDIS_URL}"
+REDIS_HOST = "${REDISHOST}"
+REDIS_PASSWORD = "${REDISPASSWORD}"
+REDIS_PORT = "${REDISPORT}"
+
+# Cache and Session
+CACHE_DRIVER = "redis"
+SESSION_DRIVER = "redis"
+SESSION_LIFETIME = "1440"
+QUEUE_CONNECTION = "redis"
+
+# Logging
+LOG_CHANNEL = "stderr"
+LOG_LEVEL = "error"
+
+# Security
+APP_DEBUG = "false"
+APP_ENV = "production"
 FORCE_HTTPS = "true"
 
+# Performance
+OPCACHE_ENABLE = "1"
+OPCACHE_MEMORY_CONSUMPTION = "256"
+OPCACHE_MAX_ACCELERATED_FILES = "20000"
+OPCACHE_VALIDATE_TIMESTAMPS = "0"
+
+# Services
 [[services]]
 name = "web"
-envs = ["PORT"]
-scale = 3
-healthcheckPath = "/api/health"
+port = 80
+httpPort = 80
+httpStartCommand = "/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
+startCommand = "/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+instanceCount = 2
+instanceSize = "medium"
 
 [[services]]
 name = "queue"
-command = "chmod +x ./run-worker.sh && sh ./run-worker.sh"
-envs = ["PORT"]
-scale = 2
-healthcheckPath = "/api/health"
+startCommand = "php artisan queue:work --tries=3 --timeout=300"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+instanceCount = 2
+instanceSize = "medium"
 
 [[services]]
-name = "cron"
-command = "chmod +x ./run-cron.sh && sh ./run-cron.sh"
-envs = ["PORT"] 
+name = "scheduler"
+startCommand = "while [ true ]; do php artisan schedule:run --verbose --no-interaction; sleep 60; done"
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+instanceCount = 1
+instanceSize = "small" 
