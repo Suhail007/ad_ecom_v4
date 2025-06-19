@@ -39,28 +39,16 @@ REDIS_PORT=${REDIS_PORT:-"6379"}
 
 # Function to display usage
 function show_usage() {
-    echo "Usage: $0 [options]"
-    echo "Options:"
-    echo "  -h, --help      Show this help message"
-    echo "  -f, --force     Force deployment without confirmation"
-    echo "  -m, --migrate   Run database migrations"
-    echo "  -s, --seed      Seed the database"
-    echo "  -c, --cache     Clear and cache configuration"
-    exit 1
-}
-
-# Parse command line arguments
 FORCE=false
 MIGRATE=false
 SEED=false
-CACHE=false
+CLEAR_CACHE=false
+OPTIMIZE=false
 
+# Parse command line arguments
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        -h|--help)
-            show_usage
-            ;;
         -f|--force)
             FORCE=true
             shift
@@ -73,64 +61,55 @@ while [[ $# -gt 0 ]]; do
             SEED=true
             shift
             ;;
-        -c|--cache)
-            CACHE=true
+        -c|--clear-cache)
+            CLEAR_CACHE=true
+            shift
+            ;;
+        -o|--optimize)
+            OPTIMIZE=true
             shift
             ;;
         *)
-            echo -e "${RED}Unknown option: $1${NC}"
-            show_usage
+            echo "Unknown option: $1"
+            exit 1
             ;;
     esac
 done
 
-# Display deployment information
-echo -e "${GREEN}=== Deployment Information ===${NC}"
-echo -e "Application: ${YELLOW}$APP_NAME${NC}"
-echo -e "Environment: ${YELLOW}$APP_ENV${NC}"
-echo -e "Debug Mode: ${YELLOW}$APP_DEBUG${NC}"
-echo -e "URL: ${YELLOW}$APP_URL${NC}"
-echo -e "Database: ${YELLOW}$DB_CONNECTION://$DB_USERNAME@$DB_HOST:$DB_PORT/$DB_DATABASE${NC}"
-echo -e "Redis: ${YELLOW}redis://$REDIS_HOST:$REDIS_PORT${NC}"
-echo -e "${GREEN}=============================${NC}"
+# Function to run a command with error handling
+run_command() {
+    echo -e "${YELLOW}Running: $@${NC}"
+    if ! $@; then
+        echo -e "${RED}Error: Command failed: $@${NC}" >&2
+        exit 1
+    fi
+}
 
-# Ask for confirmation if not forced
+echo -e "${YELLOW}Starting deployment...${NC}"
+
+# Check if the working directory is clean
 if [ "$FORCE" = false ]; then
-    read -p "Are you sure you want to deploy? (y/n) " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo -e "${YELLOW}Deployment cancelled.${NC}"
-        exit 0
+    if [ -n "$(git status --porcelain)" ]; then
+        echo -e "${RED}Working directory is not clean. Use --force to deploy anyway.${NC}"
+        exit 1
     fi
 fi
 
-# Start deployment
-echo -e "${GREEN}Starting deployment...${NC}"
+# Pull the latest changes
+run_command git pull
 
-# Install/update Composer dependencies
-echo -e "${GREEN}Installing Composer dependencies...${NC}"
-composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+# Install Composer dependencies
+echo -e "${YELLOW}Installing Composer dependencies...${NC}
+run_command composer install --optimize-autoloader --no-dev --prefer-dist --no-interaction
 
 # Install NPM dependencies and build assets
-echo -e "${GREEN}Installing NPM dependencies and building assets...${NC}
-npm install --production
-npm run production
+echo -e "${YELLOW}Installing NPM dependencies...${NC}
+run_command npm ci --no-audit --prefer-offline
 
-# Copy environment file if not exists
-if [ ! -f .env ]; then
-    echo -e "${YELLOW}Creating .env file...${NC}"
-    cp .env.example .env
-    php artisan key:generate
-fi
+echo -e "${YELLOW}Building assets...${NC}
+run_command npm run prod
 
-# Set application environment
-sed -i "s/APP_ENV=.*/APP_ENV=$APP_ENV/" .env
-sed -i "s/APP_DEBUG=.*/APP_DEBUG=$APP_DEBUG/" .env
-sed -i "s|APP_URL=.*|APP_URL=$APP_URL|" .env
-
-# Set database configuration
-sed -i "s/DB_CONNECTION=.*/DB_CONNECTION=$DB_CONNECTION/" .env
-sed -i "s/DB_HOST=.*/DB_HOST=$DB_HOST/" .env
+# Run migrations if requested
 sed -i "s/DB_PORT=.*/DB_PORT=$DB_PORT/" .env
 sed -i "s/DB_DATABASE=.*/DB_DATABASE=$DB_DATABASE/" .env
 sed -i "s/DB_USERNAME=.*/DB_USERNAME=$DB_USERNAME/" .env

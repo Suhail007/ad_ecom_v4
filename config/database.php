@@ -139,33 +139,68 @@ return [
     */
 
     'redis' => [
+
         'client' => env('REDIS_CLIENT', 'phpredis'),
+
         'options' => [
             'cluster' => env('REDIS_CLUSTER', 'redis'),
             'prefix' => env('REDIS_PREFIX', 'laravel_database_'),
-            'read_timeout' => 2,
-            'connect_timeout' => 2,
             'persistent' => true,
+            'read_timeout' => 60,
+            'retry_interval' => 1000,
         ],
+
         'default' => [
             'url' => env('REDIS_URL'),
             'host' => env('REDIS_HOST', '127.0.0.1'),
-            'password' => env('REDIS_PASSWORD', null),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_DB', '0'),
-            'retry_interval' => 1000,
-            'read_timeout' => 2,
+            'read_timeout' => 60,
+            'connect_timeout' => 10,
+            'persistent' => true,
+            'prefix' => 'db_',
         ],
+
         'cache' => [
             'url' => env('REDIS_URL'),
             'host' => env('REDIS_HOST', '127.0.0.1'),
-            'password' => env('REDIS_PASSWORD', null),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
             'port' => env('REDIS_PORT', '6379'),
             'database' => env('REDIS_CACHE_DB', '1'),
-            'retry_interval' => 1000,
-            'read_timeout' => 2,
+            'read_timeout' => 60,
+            'connect_timeout' => 10,
+            'persistent' => true,
+            'prefix' => 'cache_',
         ],
 
+        'session' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_SESSION_DB', '2'),
+            'read_timeout' => 60,
+            'connect_timeout' => 10,
+            'persistent' => true,
+            'prefix' => 'session_',
+        ],
+
+        'queue' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_QUEUE_DB', '3'),
+            'read_timeout' => 60,
+            'connect_timeout' => 10,
+            'persistent' => true,
+            'prefix' => 'queue_',
+        ],
     ],
 
 ];
