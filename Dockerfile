@@ -137,15 +137,14 @@ RUN echo '#!/bin/bash\n\
 wget --no-verbose --tries=1 --spider http://localhost/api/health || exit 1' > /healthcheck.sh && \
     chmod +x /healthcheck.sh
 
-# Add a startup script
+# Create a simple startup script that runs in the foreground
 RUN echo '#!/bin/bash\n\
 echo "Starting application..."\n\
-# Start services in the background\n/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &\n\
-# Simple loop to keep the container running\nwhile true; do\n    sleep 60\ndone' > /start.sh && \
+# Start supervisord in the foreground\nexec /usr/bin/supervisord -n -c /etc/supervisor/conf.d/supervisord.conf' > /start.sh && \
     chmod +x /start.sh
 
 # Expose ports
 EXPOSE 80 9000
 
-# Set the entrypoint
-ENTRYPOINT ["/start.sh"] 
+# Set the entrypoint to the startup script
+CMD ["/start.sh"] 
