@@ -116,18 +116,36 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
 # Set working directory
 WORKDIR /var/www/html
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && find /var/www/html -type d -exec chmod 755 {} \; \
-    && find /var/www/html -type f -exec chmod 644 {} \; \
-    && chmod -R 777 /var/www/html/storage \
-    && chmod -R 777 /var/www/html/bootstrap/cache \
-    && chmod -R 755 /var/www/html/storage \
-    && chmod -R 755 /var/www/html/bootstrap/cache
+# Set permissions with better organization and debugging
+RUN echo "Setting file permissions..." && \
+    mkdir -p /var/www/html/storage/framework/{sessions,views,cache} && \
+    mkdir -p /var/www/html/bootstrap/cache && \
+    chown -R www-data:www-data /var/www/html && \
+    find /var/www/html -type d -exec chmod 755 {} \; && \
+    find /var/www/html -type f -exec chmod 644 {} \; && \
+    chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache && \
+    chmod -R 777 /var/www/html/storage/framework && \
+    chmod -R 777 /var/www/html/storage/logs && \
+    chmod -R 777 /var/www/html/bootstrap/cache && \
+    echo "File permissions set successfully"
 
 # Generate optimized autoload files
 RUN composer dump-autoload --optimize
 
-# Expose port 9000 and start supervisor
-EXPOSE 9000
-CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/supervisord.conf"] 
+# Create a simple health check script
+RUN echo '#!/bin/bash\n\
+wget --no-verbose --tries=1 --spider http://localhost/api/health || exit 1' > /healthcheck.sh && \
+    chmod +x /healthcheck.sh
+
+# Add a startup script
+RUN echo '#!/bin/bash\n\
+echo "Starting application..."\n\
+# Start services in the background\n/usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf &\n\
+# Simple loop to keep the container running\nwhile true; do\n    sleep 60\ndone' > /start.sh && \
+    chmod +x /start.sh
+
+# Expose ports
+EXPOSE 80 9000
+
+# Set the entrypoint
+ENTRYPOINT ["/start.sh"] 
