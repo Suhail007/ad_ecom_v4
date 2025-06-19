@@ -1,6 +1,41 @@
 <?php
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use App\Http\Controllers\Auth\LoginController;
+
+// Health check endpoint for Railway
+Route::get('/health', function () {
+    // Check database connection
+    try {
+        DB::connection()->getPdo();
+        $dbConnected = true;
+    } catch (\Exception $e) {
+        $dbConnected = false;
+    }
+
+    // Check Redis connection if configured
+    $redisConnected = true;
+    if (config('cache.default') === 'redis' || config('queue.default') === 'redis') {
+        try {
+            Cache::store('redis')->has('test');
+        } catch (\Exception $e) {
+            $redisConnected = false;
+        }
+    }
+
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now()->toDateTimeString(),
+        'services' => [
+            'database' => $dbConnected ? 'connected' : 'disconnected',
+            'redis' => $redisConnected ? 'connected' : 'disconnected',
+        ],
+    ]);
+});
+
 use App\Http\Controllers\LayoutController;
 use App\Http\Controllers\MediaController;
 use App\Http\Controllers\PayPalController;
